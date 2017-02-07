@@ -21,6 +21,7 @@
 
 %  ?- with_err_to_pred(write,format(user_error,'~s',["ls"])).
 
+
 plz_set_stream(S,P):- ignore(predicate_streams:on_x_fail_priv(set_stream(S,P))).
 
 
@@ -31,15 +32,6 @@ plz_set_stream(S,P):- ignore(predicate_streams:on_x_fail_priv(set_stream(S,P))).
 on_x_fail_priv(Goal):- catch(Goal,_,fail).
 
 :- use_module(library(prolog_stream)).
-
-% Writeq/1s a term the user_error and flushes
-% dmsg(M):-!.
-
-:- if( \+ current_predicate(dmsg(_),_)).
-dmsg(M):-format(user_error,'~N~n% dmsg: ~q.~n',[M]),flush_output(user_error).
-:- endif.
-
-:- discontiguous some_test/0.
 
 :- multifile(transient_plstream:is_prolog_stream/1).
 :- dynamic(transient_plstream:is_prolog_stream/1).
@@ -79,6 +71,7 @@ current_error(Err):- current_error0(Err),
   !. % stream_property(Err,type(text)),!.
 
 current_error0(Err):- clause(current_error1(Err),B),catch(B,_,fail).
+current_error1(Err):- stream_property(Err,alias(current_error)). % for if/when we set it
 current_error1(Err):- stream_property(Err,alias(user_error)).
 current_error1(Err):- stream_property(user_error,file_no(N)),quintus:current_stream(N,write,Err).
 current_error1(Err):- current_output(Out),quintus:current_stream(X,write,Out),integer(X),Y is X+1,quintus:current_stream(Y,write,Err), \+ stream_property(Err,file_name(_)), \+ stream_property(Err,alias(_)).
@@ -99,7 +92,9 @@ with_output_to_pred(Callback,Goal):-
       (set_output(Out),Goal,FinalClean),FinalClean).
 
 
-set_error_stream(Err):- current_input(In), current_output(Out), set_prolog_IO(In,Out,Err).
+% if it''s not aliased already maybe we could set current_error alias?
+set_error_stream(Err):- current_input(In), 
+    current_output(Out), set_prolog_IO(In,Out,Err).
 
 
 %! with_err_to_pred( :PRED1Callback, :Goal) is semidet.

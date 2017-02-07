@@ -14,12 +14,12 @@
 :- with_err_to_pred(write,format(user_error,'~s',["ls"])).
 
 
-% Writeq/1s a term the user_error and flushes
-% dmsg(M):-!.
 
-:- if( \+ current_predicate(dmsg(_),_)).
-dmsg(M):-format(user_error,'~N~n% dmsg: ~q.~n',[M]),flush_output(user_error).
+% Writeq/1s a term the user_error and flushes
+:- if( \+ current_predicate(dmsg/1)).
+dmsg(M):-format(user_error,'~N % dmsg: ~q.~n',[M]),flush_output(user_error).
 :- endif.
+
 
 :- discontiguous some_test/0.
 
