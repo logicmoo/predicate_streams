@@ -127,13 +127,6 @@ maybe_restore_input(_).
    asserta(original_input_stream(Was)))).
 
 
-%! whatevah( :Goal) is semidet.
-%
-% As pronounced by a teenage girl
-%
-whatevah(Goal):- ignore(catch(Goal,error(_,_),fail)).
-
-
 %! with_output_to_predicate( :Pred1, :Goal) is nondet.
 %
 %  Redirects output stream to a predicate
@@ -248,8 +241,8 @@ with_predicate_input_stream(Pred1,Stream,Goal):-
 %  Invokes: call(+Pred1,+Data).
 
 new_predicate_output_stream(Pred1,Stream):-
-  open_prolog_stream(tl_pred_streams, write, Stream, []),
-  asserta((stream_write(Stream,Data):- ignore(whatevah(call(Pred1,Data)))),Ref1),
+  open_prolog_stream(predicate_streams, write, Stream, []),
+  asserta((stream_write(Stream,Data):- whatevah(call(Pred1,Data))),Ref1),
   asserta(current_pred_stream(Stream),Ref2),
   asserta((
     stream_close(Stream):- 
@@ -259,12 +252,6 @@ new_predicate_output_stream(Pred1,Stream):-
        whatevah(erase(Ref2)),
        retractall(stream_close(Stream)))).
 
-
-% set_stream(Stream, buffer(line)), % useful?
-% set_stream(Stream, buffer_size(1)),   % useful? 
-% set_stream(Stream, close_on_exec(true)), % useful?
-% set_stream(Stream, close_on_abort(true)), % useful?
-
 %! new_predicate_input_stream(:Pred1,-Stream)
 %
 %  Creates a new input stream that each read/getch()
@@ -273,7 +260,7 @@ new_predicate_output_stream(Pred1,Stream):-
 % @todo Discuss how to handle peek_char/2
 
 new_predicate_input_stream(Pred1,Stream):-
-  open_prolog_stream(tl_pred_streams, read, Stream, []),
+  open_prolog_stream(predicate_streams, read, Stream, []),
   asserta((stream_read(Stream,Data):- ignore(whatevah(call(Pred1,Data)))),Ref1),
   asserta(current_pred_stream(Stream),Ref2),
   asserta((
@@ -282,4 +269,16 @@ new_predicate_input_stream(Pred1,Stream):-
        whatevah(erase(Ref1)),
        whatevah(erase(Ref2)),       
        retractall(stream_close(Stream)))).
+
+
+%! whatevah( :Goal) is semidet.
+%
+% As pronounced by a teenage girl
+%
+whatevah(Goal):- ignore(catch(Goal,error(_,_),fail)).
+
+% set_stream(Stream, buffer(line)), % useful?
+% set_stream(Stream, buffer_size(1)),   % useful? 
+% set_stream(Stream, close_on_exec(true)), % useful?
+% set_stream(Stream, close_on_abort(true)), % useful?
 
