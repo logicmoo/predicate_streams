@@ -55,8 +55,8 @@ no_op(_).
 %
 %  Current Streams made by this API
 %
-:- dynamic(current_pred_stream/1).
-:- volatile(current_pred_stream/1).
+:- dynamic(current_predicate_stream/1).
+:- volatile(current_predicate_stream/1).
 
 % Hooks 
 :- thread_local(stream_write/2).
@@ -202,7 +202,7 @@ with_input_from_predicate(Pred1,Goal):-
 %
 is_predicate_stream(Stream):- 
    must_be(nonvar,Stream),
-   current_pred_stream(Stream).
+   current_predicate_stream(Stream).
 
 
 %! with_predicate_output_stream( :Pred1, ?Stream, :Goal) is nondet.
@@ -243,7 +243,7 @@ with_predicate_input_stream(Pred1,Stream,Goal):-
 new_predicate_output_stream(Pred1,Stream):-
   open_prolog_stream(predicate_streams, write, Stream, []),
   asserta((stream_write(Stream,Data):- whatevah(call(Pred1,Data))),Ref1),
-  asserta(current_pred_stream(Stream),Ref2),
+  asserta(current_predicate_stream(Stream),Ref2),
   asserta((
     stream_close(Stream):- 
     debug(predicate_streams,'~N% ~q.~n',[(stream_close(Stream):-flusing_output_to(Pred1))]),
@@ -262,7 +262,7 @@ new_predicate_output_stream(Pred1,Stream):-
 new_predicate_input_stream(Pred1,Stream):-
   open_prolog_stream(predicate_streams, read, Stream, []),
   asserta((stream_read(Stream,Data):- ignore(whatevah(call(Pred1,Data)))),Ref1),
-  asserta(current_pred_stream(Stream),Ref2),
+  asserta(current_predicate_stream(Stream),Ref2),
   asserta((
     stream_close(Stream):-    
     debug(predicate_streams,'~N% ~q.~n',[(stream_close(Stream):-call(Pred1,end_of_file))]),
