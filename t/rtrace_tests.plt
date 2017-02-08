@@ -8,17 +8,18 @@
         test1_0/1,
         test2/1.
 
+
 :- use_module(library(predicate_streams)).
-
-
-:- with_error_to_pred(write,format(user_error,'~s',["ls"])).
-
-
+:- debug(predicate_streams).
 
 % Writeq/1s a term the user_error and flushes
-:- if( \+ current_predicate(dmsg/1)).
+%:- if( \+ current_predicate(dmsg/1)).
 dmsg(M):-format(user_error,'~N % dmsg: ~q.~n',[M]),flush_output(user_error).
-:- endif.
+%:- endif.
+
+
+:- with_error_to_predicate(write,format(user_error,'~s',["ls"])).
+
 
 
 :- discontiguous some_test/0.
@@ -29,11 +30,11 @@ dmsg(M):-format(user_error,'~N % dmsg: ~q.~n',[M]),flush_output(user_error).
 % Using Input/output.
 
 
-% with_error_to_pred( :PRED1Callback, :Goal) is semidet.
+% with_error_to_predicate( :PRED1Callback, :Goal) is semidet.
 %
 % Using Err Converted To Predicate.
 
-some_test :- with_error_to_pred(format_to_error('~s'),ls).
+some_test :- with_error_to_predicate(format_to_error('~s'),ls).
 
  	 	 
 
@@ -58,11 +59,11 @@ buffer_chars(N):-number(N),!,char_code(C,N),assertz(received_chars(C)).
 buffer_chars(C):-name(C,Chars),maplist(buffer_chars,Chars).
 
 
-some_test :- with_output_to_pred(buffer_chars,write('hello. ')).
-some_test :- with_output_to_pred(buffer_chars,write('World.\n')).
+some_test :- with_output_to_predicate(buffer_chars,write('hello. ')).
+some_test :- with_output_to_predicate(buffer_chars,write('World.\n')).
 % lets just be nasy to ourselves here (confirms we handle closing of current output)
-some_test :- with_output_to_pred(buffer_chars,told).
-some_test :- with_output_to_pred(buffer_chars,(current_output(Out),close(Out))).
+some_test :- with_output_to_predicate(buffer_chars,told).
+some_test :- with_output_to_predicate(buffer_chars,(current_output(Out),close(Out))).
 % Not bad !
 
 some_test :- listing(received_chars/1).
@@ -89,7 +90,7 @@ Looks good !
 */
 
 
-some_test :- with_output_to_pred(dmsg, (current_output(Out),forall(stream_property(Out,Prop),dmsg(stream_property(Out,Prop))))).
+some_test :- with_output_to_predicate(dmsg, (current_output(Out),forall(stream_property(Out,Prop),dmsg(stream_property(Out,Prop))))).
 
 % dmsg: stream_property(<stream>(0x232b8a0),mode(write)).
 % dmsg: stream_property(<stream>(0x232b8a0),output).
@@ -119,11 +120,11 @@ read_received(C):- retract(received_chars(A)), (A==end_of_file -> C="" ; C =A).
 read_received("").
 
 % Test wtih read/1 works awesome
-some_test :- with_input_from_pred(read_received, (read(X), writeln(read(X)))).
+some_test :- with_input_from_predicate(read_received, (read(X), writeln(read(X)))).
 % dmsg: read(hello)
 
 % This test is just for deciding the scope .. (about asking callback to understand peeking or not)
-some_test :- with_input_from_pred(read_received, (peek_char(X), writeln(peek_char(X)))).
+some_test :- with_input_from_predicate(read_received, (peek_char(X), writeln(peek_char(X)))).
 % dmsg: peek_char('W')
 
 some_test :- listing(received_chars).
@@ -141,7 +142,7 @@ received_chars(end_of_file).
 received_chars(end_of_file).
 */
 
-some_test :- with_input_from_pred(=(""), (current_input(In),forall(stream_property(In,Prop),dmsg(stream_property(In,Prop))))).
+some_test :- with_input_from_predicate(=(""), (current_input(In),forall(stream_property(In,Prop),dmsg(stream_property(In,Prop))))).
 
 % dmsg: stream_property(<stream>(0x9cfd70),mode(read)).
 % dmsg: stream_property(<stream>(0x9cfd70),input).
@@ -161,12 +162,12 @@ some_test :- with_input_from_pred(=(""), (current_input(In),forall(stream_proper
 
 
 % Passes
-some_test :- \+ with_input_from_pred(=(""), \+ at_end_of_stream(current_input)).
+some_test :- \+ with_input_from_predicate(=(""), \+ at_end_of_stream(current_input)).
 
 % Passes
-some_test :- with_input_from_pred(=(hi), \+ at_end_of_stream(current_input)).
+some_test :- with_input_from_predicate(=('hello.\n'), read(World)),writeln(world=World).
 
-
+some_test :- with_output_to_predicate({}/[X]>>format('~n% ~q~n',[X]),(writeln("hi there"),writeln("how are you?"))).
 
 % Test 1
 
@@ -184,11 +185,11 @@ test1_0(In) :-
            
 
 % Passes
-some_test :- with_input_from_pred(read_received, test1_0(current_input)).
+some_test :- with_input_from_predicate(read_received, test1_0(current_input)).
 
 
 % setup for test 2 
-% :- with_output_to_pred(buffer_chars, format('Read it all\n',[])).
+% :- with_output_to_predicate(buffer_chars, format('Read it all\n',[])).
 % :- listing(received_chars/1).
 
 
@@ -210,7 +211,7 @@ test2(In) :-
             ).
 
 % TODO
-% :- with_input_from_pred(read_received, test2(current_input)).
+% :- with_input_from_predicate(read_received, test2(current_input)).
 
 some_test :- writeln(done).
 

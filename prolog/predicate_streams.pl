@@ -1,30 +1,66 @@
-% File: /opt/PrologMUD/pack/logicmoo_base/prolog/logicmoo/util/predicate_streams.pl
-
 :- module(predicate_streams,
           [ 
-            with_input_from_pred/2,
-            with_output_to_pred/2,
-            with_error_to_pred/2,
+            with_input_from_predicate/2,     % +Pred1, +Goal
+            with_output_to_predicate/2,      % +Pred1, +Goal
+            with_error_to_predicate/2,       % +Pred1, +Goal
 
-            with_predicate_input_stream/3,
-            with_predicate_output_stream/3,
-            is_predicate_stream/1,
+            with_predicate_input_stream/3,   % +Pred1, -Stream, +Goal
+            with_predicate_output_stream/3,  % +Pred1, -Stream, +Goal
 
-            set_current_input/1,
-            set_current_output/1,
-            set_current_error/1,
+            is_predicate_stream/1,           % +Stream
+            current_predicate_stream/1,      % ?Stream
 
-            current_error/1
+            set_current_input/1,             % +Stream
+            set_current_output/1,            % +Stream
+            set_current_error/1,             % +Stream
+
+            new_predicate_output_stream/2,   % +Pred1, -Stream
+            new_predicate_input_stream/2,    % +Pred1, -Stream
+
+            current_error/1                  % -Stream
           ]).
 
+/** <module> predicate_streams - Abstract Predicate Streams
+
+    Author:        Douglas R. Miles
+    E-mail:        logicmoo@gmail.com
+    WWW:           http://www.logicmoo.org
+    Copyright (C): 2015
+                       
+    This program is free software; you can redistribute it and/or
+    modify it.
+
+    18+ Years ago I remember these predicates existed as the building 
+    blocks for Sockets in some Prolog I cannot remember.
+
+*/
+
 :- meta_predicate
-        with_error_to_pred(:, 0),
-        with_input_from_pred(:, 0),
-        with_output_to_pred(:, 0),
-        whatever(0),
+        with_input_from_predicate(:, 0),
+        with_output_to_predicate(:, 0),
+        with_error_to_predicate(:, 0),
+
+        new_predicate_output_stream(:,-),
+        new_predicate_input_stream(:,-),
+
+        whatevah(0),
         with_predicate_output_stream(:, -, 0),
         with_predicate_input_stream(:, -, 0).
 
+% Syntactical commenting
+:- meta_predicate(system:no_op(*)).
+system:no_op(_).
+
+:- multifile(transient_pred_stream:is_pred_stream/1).
+:- dynamic(transient_pred_stream:is_pred_stream/1).
+:- volatile(transient_pred_stream:is_pred_stream/1).
+:- export(transient_pred_stream:is_pred_stream/1).
+:- thread_local(tl_pred_streams:stream_write/2).
+:- module_transparent(tl_pred_streams:stream_write/2).
+:- thread_local(tl_pred_streams:stream_close/1).
+:- module_transparent(tl_pred_streams:stream_close/1).
+:- thread_local(tl_pred_streams:stream_read/2).
+:- module_transparent(tl_pred_streams:stream_read/2).
 
  	 	 
 :- meta_predicate(redo_cleanup_each(0,0,0)).
@@ -39,89 +75,170 @@ redo_cleanup_each(Setup,Goal,Cleanup):-
       ('$sig_atomic'(Cleanup),throw(E))). 
 
 
-plz_set_stream(S,P):- whatever(set_stream(S,P)).
 
+% When $user_input == $current_input
+current_input_is_user_input:- stream_property(Stream,alias(user_input)),stream_property(Stream,alias(current_input)).
+
+% When $user_output == $current_output
+current_output_is_user_output:- stream_property(Stream,alias(user_output)),stream_property(Stream,alias(current_output)).
+
+% set current input stream and aliases
 set_current_input(In):- 
- plz_set_stream(In,  alias(current_input)),
- plz_set_stream(In,  alias(user_input)),
- set_input(Stream).
+ set_stream(In,  alias(current_input)),
+ (current_input_is_user_input -> set_stream(In,  alias(user_input)) ; true),
+ set_input(In).
 
+% set current output stream and aliases
 set_current_output(Out):- 
- plz_set_stream(Out,  alias(current_output)),
- plz_set_stream(Out,  alias(user_output)),
+ set_stream(Out,  alias(current_output)),
+ (current_output_is_user_output -> set_stream(Out,  alias(user_output)) ; true),
  set_output(Out).
 
-set_current_error(Err):- current_input(In), current_output(Out), 
- set_prolog_IO(In,Out,Err),
+% set current error stream and aliases
+set_current_error(Err):-
  set_stream(Err, alias(current_error)),
- set_stream(Err, alias(user_error)).
+ current_input(In), current_output(Out), 
+ set_prolog_IO(In,Out,Err).
 
-
+% Get current error stream
 current_error(Err):-   
   stream_property(Err,alias(current_error))-> true;  % when we set it
   stream_property(Err,alias(user_error)) -> true;
   stream_property(Err,file_no(2)).
 
+% Helps when Ctrl-C is hit while stream is busy
+maybe_restore_input(Stream):-
+  stream_property(Stream,alias(current_input)),
+  \+ stream_property(Stream,alias(user_input)),
+  stream_property(Was,alias(user_input)),!,
+  set_current_input(Was).
+maybe_restore_input(Stream):-
+  stream_property(Stream,alias(current_input)),
+  stream_property(Stream,alias(user_input)),
+  original_input_stream(Was),!,
+  set_current_input(Was).
+maybe_restore_input(_).   
+
+:- dynamic(original_input_stream/1).
+
+:- \+ original_input_stream(Was),
+   stream_property(Was,alias(user_input)),
+   asserta(original_input_stream(Was)).
 
 
-%! whatever( :Goal) is semidet.
+%! whatevah( :Goal) is semidet.
 %
 % Pronounced like a teenage girl
 %
-whatever(Goal):- ignore(catch(Goal,error(_,_),fail)).
+system:whatevah(Goal):- ignore(catch(Goal,error(_,_),fail)).
 
 
-%! with_output_to_pred( :Pred1, :Goal) is nondet.
+%! with_output_to_predicate( :Pred1, :Goal) is nondet.
 %
 %  Redirects output stream to a predicate
 %
-%  `?- with_output_to_pred(print_as_html_pre,
-%    (writeln("hi there"),writeln("how are you?"))).`
+%  ===
+%  ?- with_output_to_predicate({}/[X]>>assert(saved_output(X)),
+%     (write("hi there"),nl,writeln("how are you?"))),
+%     listing(saved_output/1).
 %
-% @bug Not decided that a with_output_to_pred/2 should call close or not?
-% (flush gets the job done equally as well as closing)
+%  saved_output("hi there\n").
+%  saved_output("how are you?\n").
+%
+%  ===
 
-with_output_to_pred(Pred1,Goal):-
-    current_output(Prev),
+with_output_to_predicate(Pred1,Goal):-
+   current_output(Prev),   
+   stream_property(Prev,buffer_size(Size)),
+   stream_property(Prev,buffer(Type)),
     with_predicate_output_stream(Pred1,Stream,
-        redo_cleanup_each(set_current_output(Stream),Goal,set_current_output(Prev))).
+     (set_stream(Stream, buffer(Type)),
+      set_stream(Stream, buffer_size(Size)),
+       redo_cleanup_each(
+          set_current_output(Stream),
+          Goal,
+          set_current_output(Prev)))).
 
 
-%! with_error_to_pred( :Pred1, :Goal) is nondet.
+
+%! with_error_to_predicate( :Pred1, :Goal) is nondet.
 %
 %  Redirects error stream to a predicate
 %
-% `?- with_error_to_pred(write,threads).`
+%  ===
+%  ?- with_error_to_predicate(write,threads).
+%  ... writes thread info to stdout instead of stderr...
+%  ===
+
+with_error_to_predicate(Pred1,Goal):-
+   current_error(Prev),
+    with_predicate_output_stream(Pred1,Stream, 
+       redo_cleanup_each(
+          set_current_error(Stream),
+          Goal,
+          set_current_error(Prev))).
+
+
+%! with_input_from_predicate( :Pred1, :Goal) is nondet.
 %
-% @bug Not decided that a with_error_to_pred/2 should call close or not?
-% (flush gets the job done equally as well as closing)
-
-with_error_to_pred(Pred1,Goal):-
-    current_error(Prev),
-    with_predicate_output_stream(Pred1,Stream,
-        redo_cleanup_each(set_current_error(Stream),Goal,set_current_error(Prev))).
-
-
-
-%! with_input_from_pred( :Pred1, :Goal) is nondet.
+%  ===
+%  ?- with_input_from_predicate(=('hello.\n'), read(World)).
+%  World = hello.
+%  ===
 %
-%  `?- with_input_from_pred((^(X):-X = 'y\n'), poor_interactive_goal).`
-%
-with_input_from_pred(Pred1, Goal):-
+%  ===
+%  ?- with_input_from_predicate((^(X):-X = 'y\n'), poor_interactive_goal).
+%  ...
+%  ===
+
+with_input_from_predicate(Pred1,Goal):-
     current_input(Prev),
-    with_predicate_input_stream(Pred1,Stream,
-        redo_cleanup_each(set_current_input(Stream),Goal,set_current_input(Prev))).
+    setup_call_cleanup(       
+       (new_predicate_input_stream(Pred1,Stream),
+        set_stream(Stream, buffer_size(1))),
+        redo_cleanup_each(set_current_input(Stream),Goal,set_current_input(Prev)),
+       (maybe_restore_input(Stream),  % this is a so we dont hit the tracer in Ctrl-C
+        whatevah(close(Stream)))).
 
 
-is_predicate_stream(Stream):-
+
+%! is_predicate_stream(+Stream) is nondet.
+%
+%  Checks to see if Stream was made by this API
+%
+is_predicate_stream(Stream):- 
+   must_be(nonvar,Stream),
    transient_pred_stream:is_pred_stream(Stream).
 
-:- multifile(transient_pred_stream:is_pred_stream/1).
-:- dynamic(transient_pred_stream:is_pred_stream/1).
-:- volatile(transient_pred_stream:is_pred_stream/1).
-:- export(transient_pred_stream:is_pred_stream/1).
+%! current_predicate_stream(?Stream) is nondet.
+%
+%  Current Streams made by this API
+%
+current_predicate_stream(Stream):-
+   transient_pred_stream:is_pred_stream(Stream).
+
+%! with_predicate_output_stream( :Pred1, ?Stream, :Goal) is nondet.
+%
+%  Helper that creates and destroys (closes) a predicate output stream
+%
+with_predicate_output_stream(Pred1,Stream,Goal):-
+    setup_call_cleanup(       
+       new_predicate_output_stream(Pred1,Stream),
+       Goal,
+       whatevah(close(Stream))).
 
 
+%! with_predicate_input_stream( :Pred1, ?Stream, :Goal) is nondet.
+%
+%  Helper that creates and destroys (closes) a predicate input stream
+%
+%  used by with_output_to_predicate/2, with_error_to_predicate/2
+%
+with_predicate_input_stream(Pred1,Stream,Goal):-
+    setup_call_cleanup(
+       new_predicate_output_stream(Pred1,Stream),
+       Goal,
+       whatevah(close(Stream))). 
 
 % =====================================================
 % All the magic is below here
@@ -129,38 +246,35 @@ is_predicate_stream(Stream):-
 
 :- use_module(library(prolog_stream)).
 
-:- thread_local(tl_pred_streams:stream_write/2).
-:- module_transparent(tl_pred_streams:stream_write/2).
-:- thread_local(tl_pred_streams:stream_close/1).
-:- module_transparent(tl_pred_streams:stream_close/1).
+% set_stream(Stream, buffer(false)), % useful?
+% set_stream(Stream, buffer_size(0)),   % useful? 
+% set_stream(Stream, close_on_exec(false)), % useful?
+% set_stream(Stream, close_on_abort(false)), % useful?
 
-with_predicate_output_stream(Pred1,Stream,Goal):- 
-  open_prolog_stream(tl_pred_streams, write, Stream, []),  
-  % plz_set_stream(Stream, buffer(line)),  <- Segfaultz
-  % plz_set_stream(Stream, buffer(false)), % usefull?
-  % plz_set_stream(Stream, buffer_size(0)),   % usefull? 
-  % plz_set_stream(Stream, close_on_exec(false)), % usefull?
-  % plz_set_stream(Stream, close_on_abort(false)), % usefull?
-   setup_call_cleanup(
-   ( asserta((tl_pred_streams:stream_write(Stream,Data):- ignore(predicate_streams:whatever(call(Pred1,Data)))),Ref1),
-     asserta((tl_pred_streams:stream_close(Stream):- ignore(predicate_streams:whatever(call(Pred1,end_of_file)))),Ref2),
-     asserta(transient_pred_stream:is_pred_stream(Stream),Ref3)),
-    Goal,
-    % catch so we will not exception on a closed stream
-   (predicate_streams:whatever(flush_output(Stream)),erase(Ref1),erase(Ref2),erase(Ref3))).
-  
+new_predicate_output_stream(Pred1,Stream):-
+  open_prolog_stream(tl_pred_streams, write, Stream, []),
+  asserta((tl_pred_streams:stream_write(Stream,Data):- ignore(whatevah(call(Pred1,Data)))),Ref1),
+  asserta(transient_pred_stream:is_pred_stream(Stream),Ref2),
+  asserta((
+    tl_pred_streams:stream_close(Stream):- 
+    debug(predicate_streams,'~N% ~q.~n',[(stream_close(Stream):-flusing_output_to(Pred1))]),
+       % whatevah(call(Pred1,end_of_file)),
+       whatevah(flush_output(Stream)),
+       whatevah(erase(Ref1)),
+       whatevah(erase(Ref2)),
+       retractall(tl_pred_streams:stream_close(Stream)))).
 
-:- thread_local(tl_pred_streams:stream_read/2).
-:- module_transparent(tl_pred_streams:stream_read/2).
 
-with_predicate_input_stream(Pred1,Stream,Goal):- 
+new_predicate_input_stream(Pred1,Stream):-
   open_prolog_stream(tl_pred_streams, read, Stream, []),
-   setup_call_cleanup(
-   ( asserta((tl_pred_streams:stream_read(Stream,Data):- ignore(predicate_streams:whatever(call(Pred1,Data)))),Ref1),
-     asserta(transient_pred_stream:is_pred_stream(Stream),Ref2)),
-    Goal,
-   (erase(Ref1),erase(Ref2))).
-
-
-
+  asserta((tl_pred_streams:stream_read(Stream,Data):- ignore(whatevah(call(Pred1,Data)))),Ref1),
+  asserta(transient_pred_stream:is_pred_stream(Stream),Ref2),
+  asserta((
+    tl_pred_streams:stream_close(Stream):-    
+    debug(predicate_streams,'~N% ~q.~n',[(stream_close(Stream):-call(Pred1,end_of_file))]),
+       whatevah(call(Pred1,'.\n')),
+       whatevah(call(Pred1,end_of_file)),
+       whatevah(erase(Ref1)),
+       whatevah(erase(Ref2)),       
+       retractall(tl_pred_streams:stream_close(Stream)))).
 

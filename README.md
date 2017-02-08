@@ -1,4 +1,7 @@
-# Implement your own abstract predicate streams
+# Implement your own Abstract Predicate Streams
+
+18+ Years ago I remember these predicates existed as the building 
+blocks for Sockets in some Prolog I cannot remember.
 
 
 Installation using SWI-Prolog 7.1 or later:
@@ -8,6 +11,7 @@ Installation using SWI-Prolog 7.1 or later:
   or
 
     `?- pack_install('https://github.com/TeamSPoon/predicate_streams.git').`
+
 
 
 Source code available and pull requests accepted at http://github.com/TeamSPoon/predicate_streams
@@ -25,6 +29,20 @@ Source code available and pull requests accepted at http://github.com/TeamSPoon/
 ```
 
 ```prolog
+?- with_output_to_predicate({}/[X]>>assert(saved_output(X)),
+     (write("hi there"),nl,writeln("how are you?"))),
+     listing(saved_output/1).
+
+saved_output("hi there\n").
+saved_output("how are you?\n").
+```
+
+```prolog
+?- with_input_from_predicate(=('hello.\n'), read(World)).
+World = hello.
+```
+
+```prolog
 
 ?- with_input_from_pred((^(X):-X = 'y\n'), poor_interactive_goal).
 
@@ -33,6 +51,7 @@ Source code available and pull requests accepted at http://github.com/TeamSPoon/
 ```prolog
 
 ?- with_error_to_pred(write,threads).
+... writes thread info to stdout instead of stderr...
 
 ```
 
