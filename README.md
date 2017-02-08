@@ -19,7 +19,7 @@ Source code available and pull requests accepted at http://github.com/TeamSPoon/
 # Example usages
 
 ```prolog
-?- with_output_to_pred(print_as_html_pre,
+?- with_output_to_predicate(print_as_html_pre,
     (writeln("hi there"),writeln("how are you?"))).
 
 <pre>hi there
@@ -44,13 +44,13 @@ World = hello.
 
 ```prolog
 
-?- with_input_from_pred((^(X):-X = 'y\n'), poor_interactive_goal).
+?- with_input_from_predicate((^(X):-X = 'y\n'), poor_interactive_goal).
 
 ```
 
 ```prolog
 
-?- with_error_to_pred(write,threads).
+?- with_error_to_predicate(write,threads).
 ... writes thread info to stdout instead of stderr...
 
 ```
