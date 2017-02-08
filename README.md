@@ -19,16 +19,6 @@ Source code available and pull requests accepted at http://github.com/TeamSPoon/
 # Example usages
 
 ```prolog
-?- with_output_to_predicate(print_as_html_pre,
-    (writeln("hi there"),writeln("how are you?"))).
-
-<pre>hi there
-</pre>
-<pre>how are you?
-</pre>
-```
-
-```prolog
 ?- with_output_to_predicate({}/[X]>>assert(saved_output(X)),
      (write("hi there"),nl,writeln("how are you?"))),
      listing(saved_output/1).
@@ -43,8 +33,8 @@ World = hello.
 ```
 
 ```prolog
-
-?- with_input_from_predicate((^(X):-X = 'y\n'), poor_interactive_goal).
+% Auto presses Y<Enter>
+?- with_input_from_predicate({}/[X]>>X='Y\n', poor_interactive_goal).
 
 ```
 
@@ -53,6 +43,16 @@ World = hello.
 ?- with_error_to_predicate(write,threads).
 ... writes thread info to stdout instead of stderr...
 
+```
+
+```prolog
+?- with_output_to_predicate(print_as_html_pre,
+    (writeln("hi there"),writeln("how are you?"))).
+
+<pre>hi there
+</pre>
+<pre>how are you?
+</pre>
 ```
 
 [BSD 2-Clause License](LICENSE.md)
