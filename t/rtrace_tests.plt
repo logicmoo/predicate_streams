@@ -11,7 +11,7 @@
 :- use_module(library(predicate_streams)).
 
 
-:- with_err_to_pred(write,format(user_error,'~s',["ls"])).
+:- with_error_to_pred(write,format(user_error,'~s',["ls"])).
 
 
 
@@ -29,11 +29,11 @@ dmsg(M):-format(user_error,'~N % dmsg: ~q.~n',[M]),flush_output(user_error).
 % Using Input/output.
 
 
-% with_err_to_pred( :PRED1Callback, :Goal) is semidet.
+% with_error_to_pred( :PRED1Callback, :Goal) is semidet.
 %
 % Using Err Converted To Predicate.
 
-some_test :- with_err_to_pred(format_to_error('~s'),ls).
+some_test :- with_error_to_pred(format_to_error('~s'),ls).
 
  	 	 
 
