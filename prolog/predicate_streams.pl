@@ -43,24 +43,25 @@
         new_predicate_output_stream(:,-),
         new_predicate_input_stream(:,-),
 
-        whatevah(0),
+        whatevah(:),
         with_predicate_output_stream(:, -, 0),
         with_predicate_input_stream(:, -, 0).
 
 % Syntactical commenting
-:- meta_predicate(system:no_op(*)).
-system:no_op(_).
+:- meta_predicate(no_op(*)).
+no_op(_).
 
-:- multifile(transient_pred_stream:is_pred_stream/1).
-:- dynamic(transient_pred_stream:is_pred_stream/1).
-:- volatile(transient_pred_stream:is_pred_stream/1).
-:- export(transient_pred_stream:is_pred_stream/1).
-:- thread_local(tl_pred_streams:stream_write/2).
-:- module_transparent(tl_pred_streams:stream_write/2).
-:- thread_local(tl_pred_streams:stream_close/1).
-:- module_transparent(tl_pred_streams:stream_close/1).
-:- thread_local(tl_pred_streams:stream_read/2).
-:- module_transparent(tl_pred_streams:stream_read/2).
+%! current_predicate_stream(?Stream) is nondet.
+%
+%  Current Streams made by this API
+%
+:- dynamic(current_pred_stream/1).
+:- volatile(current_pred_stream/1).
+
+% Hooks 
+:- thread_local(stream_write/2).
+:- thread_local(stream_close/1).
+:- thread_local(stream_read/2).
 
  	 	 
 :- meta_predicate(redo_cleanup_each(0,0,0)).
@@ -121,16 +122,16 @@ maybe_restore_input(_).
 
 :- dynamic(original_input_stream/1).
 
-:- \+ original_input_stream(Was),
+:- ignore((\+ original_input_stream(Was),
    stream_property(Was,alias(user_input)),
-   asserta(original_input_stream(Was)).
+   asserta(original_input_stream(Was)))).
 
 
 %! whatevah( :Goal) is semidet.
 %
-% Pronounced like a teenage girl
+% As pronounced by a teenage girl
 %
-system:whatevah(Goal):- ignore(catch(Goal,error(_,_),fail)).
+whatevah(Goal):- ignore(catch(Goal,error(_,_),fail)).
 
 
 %! with_output_to_predicate( :Pred1, :Goal) is nondet.
@@ -187,8 +188,8 @@ with_error_to_predicate(Pred1,Goal):-
 %  ===
 %
 %  ===
-%  ?- with_input_from_predicate((^(X):-X = 'y\n'), poor_interactive_goal).
-%  ...
+%  Auto presses Y<Enter>
+%  ?- with_input_from_predicate({}/[X]>>X='Y\n', poor_interactive_goal).
 %  ===
 
 with_input_from_predicate(Pred1,Goal):-
@@ -202,20 +203,14 @@ with_input_from_predicate(Pred1,Goal):-
 
 
 
-%! is_predicate_stream(+Stream) is nondet.
+%! is_predicate_stream(+Stream) is det.
 %
 %  Checks to see if Stream was made by this API
 %
 is_predicate_stream(Stream):- 
    must_be(nonvar,Stream),
-   transient_pred_stream:is_pred_stream(Stream).
+   current_pred_stream(Stream).
 
-%! current_predicate_stream(?Stream) is nondet.
-%
-%  Current Streams made by this API
-%
-current_predicate_stream(Stream):-
-   transient_pred_stream:is_pred_stream(Stream).
 
 %! with_predicate_output_stream( :Pred1, ?Stream, :Goal) is nondet.
 %
@@ -240,38 +235,51 @@ with_predicate_input_stream(Pred1,Stream,Goal):-
        Goal,
        whatevah(close(Stream))). 
 
+
 % =====================================================
-% All the magic is below here
+% All magic is below here
 % =====================================================
 
 :- use_module(library(prolog_stream)).
 
-% set_stream(Stream, buffer(false)), % useful?
-% set_stream(Stream, buffer_size(0)),   % useful? 
-% set_stream(Stream, close_on_exec(false)), % useful?
-% set_stream(Stream, close_on_abort(false)), % useful?
+%! new_predicate_output_stream(:Pred1,-Stream)
+%
+%  Creates a new output stream that each write 
+%  Invokes: call(+Pred1,+Data).
 
 new_predicate_output_stream(Pred1,Stream):-
   open_prolog_stream(tl_pred_streams, write, Stream, []),
-  asserta((tl_pred_streams:stream_write(Stream,Data):- ignore(whatevah(call(Pred1,Data)))),Ref1),
-  asserta(transient_pred_stream:is_pred_stream(Stream),Ref2),
+  asserta((stream_write(Stream,Data):- ignore(whatevah(call(Pred1,Data)))),Ref1),
+  asserta(current_pred_stream(Stream),Ref2),
   asserta((
-    tl_pred_streams:stream_close(Stream):- 
+    stream_close(Stream):- 
     debug(predicate_streams,'~N% ~q.~n',[(stream_close(Stream):-flusing_output_to(Pred1))]),
        whatevah(flush_output(Stream)),
        whatevah(erase(Ref1)),
        whatevah(erase(Ref2)),
-       retractall(tl_pred_streams:stream_close(Stream)))).
+       retractall(stream_close(Stream)))).
 
+
+% set_stream(Stream, buffer(line)), % useful?
+% set_stream(Stream, buffer_size(1)),   % useful? 
+% set_stream(Stream, close_on_exec(true)), % useful?
+% set_stream(Stream, close_on_abort(true)), % useful?
+
+%! new_predicate_input_stream(:Pred1,-Stream)
+%
+%  Creates a new input stream that each read/getch()
+%  Invokes: call(+Pred1,-Data).
+%  
+% @todo Discuss how to handle peek_char/2
 
 new_predicate_input_stream(Pred1,Stream):-
   open_prolog_stream(tl_pred_streams, read, Stream, []),
-  asserta((tl_pred_streams:stream_read(Stream,Data):- ignore(whatevah(call(Pred1,Data)))),Ref1),
-  asserta(transient_pred_stream:is_pred_stream(Stream),Ref2),
+  asserta((stream_read(Stream,Data):- ignore(whatevah(call(Pred1,Data)))),Ref1),
+  asserta(current_pred_stream(Stream),Ref2),
   asserta((
-    tl_pred_streams:stream_close(Stream):-    
+    stream_close(Stream):-    
     debug(predicate_streams,'~N% ~q.~n',[(stream_close(Stream):-call(Pred1,end_of_file))]),
        whatevah(erase(Ref1)),
        whatevah(erase(Ref2)),       
-       retractall(tl_pred_streams:stream_close(Stream)))).
+       retractall(stream_close(Stream)))).
 
