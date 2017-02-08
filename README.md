@@ -1,4 +1,4 @@
-# Implement your own prolog streams with predicate sources and sinks
+# Implement your own abstract predicate streams
 
 
 Installation using SWI-Prolog 7.1 or later:
