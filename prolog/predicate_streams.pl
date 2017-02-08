@@ -258,7 +258,6 @@ new_predicate_output_stream(Pred1,Stream):-
   asserta((
     tl_pred_streams:stream_close(Stream):- 
     debug(predicate_streams,'~N% ~q.~n',[(stream_close(Stream):-flusing_output_to(Pred1))]),
-       % whatevah(call(Pred1,end_of_file)),
        whatevah(flush_output(Stream)),
        whatevah(erase(Ref1)),
        whatevah(erase(Ref2)),
@@ -272,8 +271,6 @@ new_predicate_input_stream(Pred1,Stream):-
   asserta((
     tl_pred_streams:stream_close(Stream):-    
     debug(predicate_streams,'~N% ~q.~n',[(stream_close(Stream):-call(Pred1,end_of_file))]),
-       whatevah(call(Pred1,'.\n')),
-       whatevah(call(Pred1,end_of_file)),
        whatevah(erase(Ref1)),
        whatevah(erase(Ref2)),       
        retractall(tl_pred_streams:stream_close(Stream)))).
