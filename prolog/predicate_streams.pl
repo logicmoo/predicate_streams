@@ -17,7 +17,7 @@
             new_predicate_output_stream/2,   % +Pred1, -Stream
             new_predicate_input_stream/2,    % +Pred1, -Stream
 
-            current_error/1                  % -Stream
+            current_error_stream/1                  % -Stream
           ]).
 
 /** <module> predicate_streams - Abstract Predicate Streams
@@ -97,13 +97,13 @@ set_current_output(Out):-
 
 % set current error stream and aliases
 set_current_error(Err):-
- set_stream(Err, alias(current_error)),
+ set_stream(Err, alias(current_error_stream)),
  current_input(In), current_output(Out), 
  set_prolog_IO(In,Out,Err).
 
 % Get current error stream
-current_error(Err):-   
-  stream_property(Err,alias(current_error))-> true;  % when we set it
+current_error_stream(Err):-   
+  stream_property(Err,alias(current_error_stream))-> true;  % when we set it
   stream_property(Err,alias(user_error)) -> true;
   stream_property(Err,file_no(2)).
 
@@ -165,7 +165,7 @@ with_output_to_predicate(Pred1,Goal):-
 %  ===
 
 with_error_to_predicate(Pred1,Goal):-
-   current_error(Prev),
+   current_error_stream(Prev),
     with_predicate_output_stream(Pred1,Stream, 
        redo_cleanup_each(
           set_current_error(Stream),

@@ -10,7 +10,7 @@ Installation using SWI-Prolog 7.1 or later:
 
   or
 
-    `?- pack_install('https://github.com/TeamSPoon/predicate_streams.git').`
+    `?- pack_install('https://github.com/TeamSPoon/pack_predicate_streams.git').`
 
 
 
