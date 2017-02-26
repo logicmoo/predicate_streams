@@ -120,12 +120,15 @@ maybe_restore_input(Stream):-
   set_current_input(Was).
 maybe_restore_input(_).   
 
+:- volatile(original_input_stream/1).
 :- dynamic(original_input_stream/1).
 
-:- ignore((\+ original_input_stream(Was),
+know_original_user_input:- ignore((\+ original_input_stream(_),
    stream_property(Was,alias(user_input)),
    asserta(original_input_stream(Was)))).
 
+:- initialization(predicate_streams:know_original_user_input,restore).
+:- initialization(predicate_streams:know_original_user_input).
 
 %! with_output_to_predicate( :Pred1, :Goal) is nondet.
 %
