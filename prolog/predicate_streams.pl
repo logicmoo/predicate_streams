@@ -51,6 +51,8 @@
 :- meta_predicate(no_op(*)).
 no_op(_).
 
+
+
 %! current_predicate_stream(?Stream) is nondet.
 %
 %  Current Streams made by this API
@@ -78,9 +80,11 @@ redo_cleanup_each(Setup,Goal,Cleanup):-
 
 
 % When $user_input == $current_input
+current_input_is_user_input:- !,false.
 current_input_is_user_input:- stream_property(Stream,alias(user_input)),stream_property(Stream,alias(current_input)).
 
 % When $user_output == $current_output
+current_output_is_user_output:- !,false.
 current_output_is_user_output:- stream_property(Stream,alias(user_output)),stream_property(Stream,alias(current_output)).
 
 % set current input stream and aliases
@@ -96,14 +100,15 @@ set_current_output(Out):-
  set_output(Out).
 
 % set current error stream and aliases
+% set_current_error(Err):- current_error_stream(ErrW)-> Err==ErrW,!.
 set_current_error(Err):-
- set_stream(Err, alias(current_error_stream)),
+ set_stream(Err, alias(current_error)),
  current_input(In), current_output(Out), 
  set_prolog_IO(In,Out,Err).
 
 % Get current error stream
 current_error_stream(Err):-   
-  stream_property(Err,alias(current_error_stream))-> true;  % when we set it
+  stream_property(Err,alias(current_error))-> true;  % when we set it
   stream_property(Err,alias(user_error)) -> true;
   stream_property(Err,file_no(2)).
 
@@ -127,6 +132,11 @@ know_original_user_input:- ignore((\+ original_input_stream(_),
    stream_property(Was,alias(user_input)),
    asserta(original_input_stream(Was)))).
 
+:- if(( \+ source_file_property(reloading, true) , thread_self(M) , M == main )).
+:- stream_property(S,alias(user_output)),set_stream(S,alias(main_user_output)).
+:- stream_property(S,alias(user_error)),set_stream(S,alias(main_user_error)).
+:- endif.
+
 :- initialization(predicate_streams:know_original_user_input,restore).
 :- initialization(predicate_streams:know_original_user_input).
 
@@ -146,11 +156,11 @@ know_original_user_input:- ignore((\+ original_input_stream(_),
 
 with_output_to_predicate(Pred1,Goal):-
    current_output(Prev),   
-   stream_property(Prev,buffer_size(Size)),
+   % stream_property(Prev,buffer_size(Size)),
    stream_property(Prev,buffer(Type)),
     with_predicate_output_stream(Pred1,Stream,
      (set_stream(Stream, buffer(Type)),
-      set_stream(Stream, buffer_size(Size)),
+      % set_stream(Stream, buffer_size(Size)),
        redo_cleanup_each(
           set_current_output(Stream),
           Goal,
