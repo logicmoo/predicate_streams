@@ -1,7 +1,7 @@
 name(predicate_streams).
 title('Implement your own Abstract Predicate Streams').
 
-version('0.0.8').
+version('1.1.111').
 download('https://github.com/TeamSPoon/predicate_streams/releases/*.zip').
 
 author( 'Douglas R. Miles', 'logicmoo@gmail.com' ).

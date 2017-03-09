@@ -130,7 +130,7 @@ maybe_restore_input(_).
 
 know_original_user_input:- ignore((\+ original_input_stream(_),
    stream_property(Was,alias(user_input)),
-   asserta(original_input_stream(Was)))).
+   call(asserta,original_input_stream(Was)))).
 
 :- if(( \+ source_file_property(reloading, true) , thread_self(M) , M == main )).
 :- stream_property(S,alias(user_output)),set_stream(S,alias(main_user_output)).
@@ -255,9 +255,9 @@ with_predicate_input_stream(Pred1,Stream,Goal):-
 
 new_predicate_output_stream(Pred1,Stream):-
   open_prolog_stream(predicate_streams, write, Stream, []),
-  asserta((stream_write(Stream,Data):- whatevah(call(Pred1,Data))),Ref1),
-  asserta(current_predicate_stream(Stream),Ref2),
-  asserta((
+  call(asserta,(stream_write(Stream,Data):- whatevah(call(Pred1,Data))),Ref1),
+  call(asserta,current_predicate_stream(Stream),Ref2),
+  call(asserta,(
     stream_close(Stream):- 
     debug(predicate_streams,'~N% ~q.~n',[(stream_close(Stream):-flusing_output_to(Pred1))]),
        whatevah(flush_output(Stream)),
@@ -274,9 +274,9 @@ new_predicate_output_stream(Pred1,Stream):-
 
 new_predicate_input_stream(Pred1,Stream):-
   open_prolog_stream(predicate_streams, read, Stream, []),
-  asserta((stream_read(Stream,Data):- ignore(whatevah(call(Pred1,Data)))),Ref1),
-  asserta(current_predicate_stream(Stream),Ref2),
-  asserta((
+  call(asserta,(stream_read(Stream,Data):- ignore(whatevah(call(Pred1,Data)))),Ref1),
+  call(asserta,current_predicate_stream(Stream),Ref2),
+  call(asserta,(
     stream_close(Stream):-    
     debug(predicate_streams,'~N% ~q.~n',[(stream_close(Stream):-call(Pred1,end_of_file))]),
        whatevah(erase(Ref1)),
