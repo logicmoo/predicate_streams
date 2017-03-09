@@ -1,17 +1,12 @@
 # Implement your own Abstract Predicate Streams
 
 18+ Years ago I remember these predicates existed as the building 
-blocks for Sockets in some Prolog I cannot remember.
+blocks for writing your own Sockets in some Prolog I cannot remember.
 
 
 Installation using SWI-Prolog 7.1 or later:
 
-    `?- pack_install(predicate_streams).`
-
-  or
-
-    `?- pack_install('https://github.com/TeamSPoon/predicate_streams.git').`
-
+   `?- pack_install('https://github.com/TeamSPoon/predicate_streams.git').`
 
 
 Source code available and pull requests accepted at http://github.com/TeamSPoon/predicate_streams
