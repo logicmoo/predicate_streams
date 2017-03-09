@@ -55,8 +55,6 @@ World = hello.
 
 Document this pack!
 Write tests
-Untangle the 'pack' install deps
-Still in progress (Moving predicates over here from logicmoo_base)
 
 
 [BSD 2-Clause License](LICENSE.md)
@@ -69,6 +67,9 @@ All rights reserved.
 
 Dislike having tons of forks that are several commits behind the main git repo?
 
-Please ask to be added to TeamSPoon !
+Be old school - Please ask to be added to TeamSPoon and Contribute directly !
+Still, we wont stop you from doing it the Fork+PullRequest method
+
+
 
 
