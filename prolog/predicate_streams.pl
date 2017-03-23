@@ -9,7 +9,9 @@
 
             is_predicate_stream/1,           % +Stream
             current_predicate_stream/1,      % ?Stream
-            close_hook/2,                     % ?Stream, +Goal
+            on_stream_close/2,               % ?Stream, +Goal
+			tl:on_stream_write/2,               % ?Stream, +Pred1
+			on_stream_read/2,                % ?Stream, +Pred1
 
             set_current_input/1,             % +Stream
             set_current_output/1,            % +Stream
@@ -52,7 +54,7 @@
 :- meta_predicate(no_op(*)).
 no_op(_).
 
-
+current_error(Err):- current_error_stream(Err).
 
 %! current_predicate_stream(?Stream) is nondet.
 %
@@ -60,14 +62,21 @@ no_op(_).
 %
 :- dynamic(current_predicate_stream/1).
 :- volatile(current_predicate_stream/1).
-:- volatile(close_hook/2).
 
 % Hooks
-:- thread_local(stream_write/2).
-:- thread_local(stream_close/1).
-:- thread_local(stream_read/2).
+:- if(true).
+:- thread_local(tl:on_stream_write/2).
+:- thread_local(on_stream_close/2).
+:- thread_local(on_stream_read/2).
+:- else.
+:- dynamic(tl:on_stream_write/2).
+:- dynamic(on_stream_close/2).
+:- dynamic(on_stream_read/2).
+:- endif.
 
-:- thread_local(close_hook/2).
+:- volatile(tl:on_stream_write/2).
+:- volatile(on_stream_close/2).
+:- volatile(on_stream_read/2).
 
 
 :- meta_predicate(redo_cleanup_each(0,0,0)).
@@ -84,37 +93,48 @@ redo_cleanup_each(Setup,Goal,Cleanup):-
 
 
 % When $user_input == $current_input
-current_input_is_user_input:- !,false.
+%current_input_is_user_input:- !,false.
 current_input_is_user_input:- stream_property(Stream,alias(user_input)),stream_property(Stream,alias(current_input)).
 
 % When $user_output == $current_output
-current_output_is_user_output:- !,false.
+%current_output_is_user_output:- !,false.
 current_output_is_user_output:- stream_property(Stream,alias(user_output)),stream_property(Stream,alias(current_output)).
 
 % set current input stream and aliases
+set_current_input(In):- stream_property(In,  alias(current_input)),!.
 set_current_input(In):-
- set_stream(In,  alias(current_input)),
  (current_input_is_user_input -> set_stream(In,  alias(user_input)) ; true),
+ set_stream(In,  alias(current_input)),
  set_input(In).
+ :- '$hide'(set_current_input/1).  
 
 % set current output stream and aliases
-set_current_output(Out):-
- set_stream(Out,  alias(current_output)),
- (current_output_is_user_output -> set_stream(Out,  alias(user_output)) ; true),
+set_current_output(Out):- stream_property(Was,  alias(current_output)),!,notrace(set_current_output_to(Was,Out)).
+:- '$hide'(set_current_output/1).  
+set_current_output_to(Out,Out):- !.
+set_current_output_to(Was,Out):-
+ nop(whatevah(flush_output(Was))),
  set_output(Out).
+:- '$hide'(set_current_output_to/2).  
 
 % set current error stream and aliases
 % set_current_error(Err):- current_error_stream(ErrW)-> Err==ErrW,!.
 set_current_error(Err):-
  set_stream(Err, alias(current_error)),
- current_input(In), current_output(Out),
- set_prolog_IO(In,Out,Err).
+ set_current_error_IO(Err).
+:- '$hide'(set_current_error/1).
+  
+set_current_error_IO(Err):-
+ notrace((current_input(In), current_output(Out), 
+ set_prolog_IO(In,Out,Err))).
+:- '$hide'(set_current_error_IO/1).  
 
 % Get current error stream
 current_error_stream(Err):-
   stream_property(Err,alias(current_error))-> true;  % when we set it
   stream_property(Err,alias(user_error)) -> true;
   stream_property(Err,file_no(2)).
+:- '$hide'(current_error_stream/1).  
 
 % Helps when Ctrl-C is hit while stream is busy
 maybe_restore_input(Stream):-
@@ -125,24 +145,49 @@ maybe_restore_input(Stream):-
 maybe_restore_input(Stream):-
   stream_property(Stream,alias(current_input)),
   stream_property(Stream,alias(user_input)),
-  original_input_stream(Was),!,
+  original_user_stream(user_input,Was),!,
   set_current_input(Was).
 maybe_restore_input(_).
+:- '$hide'(maybe_restore_input/1).  
 
-:- volatile(original_input_stream/1).
-:- dynamic(original_input_stream/1).
+:- volatile(original_user_stream/2).
+:- dynamic(original_user_stream/2).
 
-know_original_user_input:- ignore((\+ original_input_stream(_),
-   stream_property(Was,alias(user_input)),
-   asserta(original_input_stream(Was)))).
+know_original_user_input:- 
+ ignore((\+ original_user_stream(_,_),
+   stream_property(In,alias(user_input)),call(asserta,original_user_stream(user_input,In)),
+   stream_property(Out,alias(user_output)),call(asserta,original_user_stream(user_output,Out)),
+   stream_property(Err,alias(user_error)),call(asserta,original_user_stream(user_error,Err)))).
 
-:- if(( \+ source_file_property(reloading, true) , thread_self(M) , M == main )).
+:- if(( \+ source_file_property(reloading, true))).
+:- if((thread_self(M) , M == main )).
+:- stream_property(S,alias(user_input)),set_stream(S,alias(main_user_input)).
 :- stream_property(S,alias(user_output)),set_stream(S,alias(main_user_output)).
 :- stream_property(S,alias(user_error)),set_stream(S,alias(main_user_error)).
+:- know_original_user_input.
+:- else.
+:- if(current_prolog_flag(debug,true)).
+:- thread_self(Self),throw(know_original_user_input(Self)),!.
+:- endif.
+% :- know_original_user_input.
+:- endif.
 :- endif.
 
-:- initialization(predicate_streams:know_original_user_input,restore).
-:- initialization(predicate_streams:know_original_user_input).
+:- initialization(know_original_user_input,restore).
+:- initialization(know_original_user_input).
+
+%! is_predicate_stream(+Stream) is det.
+%
+%  Checks to see if Stream was made by this API
+%
+is_predicate_stream(Stream):-
+   must_be(nonvar,Stream),
+   current_predicate_stream(Stream).
+
+
+% =====================================================
+% Override std streams
+% =====================================================
 
 %! with_output_to_predicate( :Pred1, :Goal) is nondet.
 %
@@ -161,9 +206,10 @@ know_original_user_input:- ignore((\+ original_input_stream(_),
 with_output_to_predicate(Pred1,Goal):-
    current_output(Prev),
    % stream_property(Prev,buffer_size(Size)),
-   stream_property(Prev,buffer(Type)),
+   % stream_property(Prev,buffer(Buffer)),
+   % Buffer = line,
     with_predicate_output_stream(Pred1,Stream,
-     (set_stream(Stream, buffer(Type)),
+     ( % set_stream(Stream, buffer(Buffer)),
       % set_stream(Stream, buffer_size(Size)),
        redo_cleanup_each(
           set_current_output(Stream),
@@ -184,10 +230,10 @@ with_output_to_predicate(Pred1,Goal):-
 with_error_to_predicate(Pred1,Goal):-
    current_error_stream(Prev),
     with_predicate_output_stream(Pred1,Stream,
-       redo_cleanup_each(
+      redo_cleanup_each(
           set_current_error(Stream),
           Goal,
-          set_current_error(Prev))).
+         set_current_error(Prev))).
 
 
 %! with_input_from_predicate( :Pred1, :Goal) is nondet.
@@ -204,23 +250,16 @@ with_error_to_predicate(Pred1,Goal):-
 
 with_input_from_predicate(Pred1,Goal):-
     current_input(Prev),
-    setup_call_cleanup(
-       (new_predicate_input_stream(Pred1,Stream),
-        set_stream(Stream, buffer_size(1))),
-        redo_cleanup_each(set_current_input(Stream),Goal,set_current_input(Prev)),
-       (maybe_restore_input(Stream),  % this is a so we dont hit the tracer in Ctrl-C
-        whatevah(close(Stream)))).
+    with_predicate_input_stream(Pred1,Stream,
+        redo_cleanup_each(
+           set_current_input(Stream),
+           Goal,
+           set_current_input(Prev))).
 
 
-
-%! is_predicate_stream(+Stream) is det.
-%
-%  Checks to see if Stream was made by this API
-%
-is_predicate_stream(Stream):-
-   must_be(nonvar,Stream),
-   current_predicate_stream(Stream).
-
+% =====================================================
+% With Predciate I/O
+% =====================================================
 
 %! with_predicate_output_stream( :Pred1, ?Stream, :Goal) is nondet.
 %
@@ -230,7 +269,7 @@ with_predicate_output_stream(Pred1,Stream,Goal):-
     setup_call_cleanup(
        new_predicate_output_stream(Pred1,Stream),
        Goal,
-       whatevah(close(Stream))).
+       force_close(Stream)).
 
 
 %! with_predicate_input_stream( :Pred1, ?Stream, :Goal) is nondet.
@@ -241,9 +280,9 @@ with_predicate_output_stream(Pred1,Stream,Goal):-
 %
 with_predicate_input_stream(Pred1,Stream,Goal):-
     setup_call_cleanup(
-       new_predicate_output_stream(Pred1,Stream),
+       new_predicate_input_stream(Pred1,Stream),
        Goal,
-       whatevah(close(Stream))).
+       force_close(Stream)).
 
 
 % =====================================================
@@ -252,6 +291,37 @@ with_predicate_input_stream(Pred1,Stream,Goal):-
 
 :- use_module(library(prolog_stream)).
 
+stream_write(Stream,Data):- notrace((tracing-> write(main_user_error,Data);
+  forall(tl:on_stream_write(Stream,Pred1),loop_check_term(call(Pred1,Data),stream_write(Stream,Data),true)))).
+:- '$hide'(stream_write/2).
+stream_read(Stream,Data):- once(on_stream_read(Stream,Pred1) -> call(Pred1,Data) ; Data = -1).
+:- '$hide'(stream_read/2).
+force_close(Stream):- whatevah(close(Stream,[force(true)])).
+:- '$hide'(force_close/1).  
+
+stream_close(Stream):-
+  notrace((
+   retract(current_predicate_stream(Stream)),   
+   maybe_restore_input(Stream), % this is a so we dont hit the tracer in Ctrl-C
+   (stream_property(Stream,output)-> stream_close_output(Stream) ; true),
+   whatevah(forall(retract(on_stream_read(Stream,Pred1)),
+        nop(debug(predicate_streams,'~N% ~q.~n',[(stream_close(Stream):-on_stream_read(Pred1))])))),
+   forall(retract(on_stream_close(Stream,Call)),whatevah(Call)))),!.
+stream_close(_Stream).
+:- '$hide'(stream_close/1).  
+
+
+
+stream_close_output(Stream):-
+  notrace(( 
+   %whatevah(stream_write(Stream,'')),
+   whatevah(flush_output(Stream)),
+   % whatevah(forall(retract(tl:on_stream_write(Stream,Pred1)), nop(debug(predicate_streams,'~N% ~q.~n',[(stream_close(Stream):-tl:on_stream_write(Pred1))])))),
+   !)).
+stream_close_output(_).
+:- '$hide'(stream_close_output/1).
+
+
 %! new_predicate_output_stream(:Pred1,-Stream)
 %
 %  Creates a new output stream that each write
@@ -259,16 +329,11 @@ with_predicate_input_stream(Pred1,Stream,Goal):-
 
 new_predicate_output_stream(Pred1,Stream):-
   open_prolog_stream(predicate_streams, write, Stream, []),
-  asserta((stream_write(Stream,Data):- whatevah(call(Pred1,Data))),Ref1),
-  asserta(current_predicate_stream(Stream),Ref2),
-  asserta((
-    stream_close(Stream):-
-     debug(predicate_streams,'~N% ~q.~n',[(stream_close(Stream):-flusing_output_to(Pred1))]),
-       forall(retract(close_hook(Stream,Call)),ignore(Call)),
-       whatevah(flush_output(Stream)),
-       whatevah(erase(Ref1)),
-       whatevah(erase(Ref2)),
-       retractall(stream_close(Stream)))).
+   %set_stream(Stream, buffer(line)),
+   %set_stream(Stream, buffer_size(4096)),
+   asserta(tl:on_stream_write(Stream,Pred1)),
+   assert(current_predicate_stream(Stream)),
+   thread_at_exit(force_close(Stream)).
 
 %! new_predicate_input_stream(:Pred1,-Stream)
 %
@@ -279,25 +344,24 @@ new_predicate_output_stream(Pred1,Stream):-
 
 new_predicate_input_stream(Pred1,Stream):-
   open_prolog_stream(predicate_streams, read, Stream, []),
-  asserta((stream_read(Stream,Data):- ignore(whatevah(call(Pred1,Data)))),Ref1),
-  asserta(current_predicate_stream(Stream),Ref2),
-  asserta((
-    stream_close(Stream):-
-    debug(predicate_streams,'~N% ~q.~n',[(stream_close(Stream):-call(Pred1,end_of_file))]),
-       forall(retract(close_hook(Stream,Call)),ignore(Call)),
-       whatevah(erase(Ref1)),
-       whatevah(erase(Ref2)),
-       retractall(stream_close(Stream)))).
+   assert(current_predicate_stream(Stream)),
+   asserta(on_stream_read(Stream,Pred1)),
+   set_stream(Stream, buffer_size(1)),
+   thread_at_exit(force_close(Stream)).
 
 
 %! whatevah( :Goal) is semidet.
 %
 % As pronounced by a teenage girl
 %
-whatevah(Goal):- ignore(catch(Goal,error(_,_),fail)).
+whatevah(Goal):- notrace('$sig_atomic'(ignore(catch(Goal,error(_,_),fail)))).
+:- '$hide'(whatevah/1).  
+  
 
 % set_stream(Stream, buffer(line)), % useful?
 % set_stream(Stream, buffer_size(1)),   % useful?
 % set_stream(Stream, close_on_exec(true)), % useful?
 % set_stream(Stream, close_on_abort(true)), % useful?
+
+
 

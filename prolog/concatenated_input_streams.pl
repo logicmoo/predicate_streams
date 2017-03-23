@@ -16,6 +16,8 @@
 */
 
 :- use_module(library(predicate_streams)).
+:- use_module(library(yall)).
+
 
 %! new_concat_input_stream(+list:StreamsIn,-NewStream)
 %

@@ -16,6 +16,7 @@
 */
 
 :- use_module(library(predicate_streams)).
+:- use_module(library(yall)).
 
 %! new_broadcast_stream(+list:StreamsIn,-NewStream)
 %
