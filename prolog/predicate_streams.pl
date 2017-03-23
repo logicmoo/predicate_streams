@@ -3,6 +3,7 @@
             with_input_from_predicate/2,     % +Pred1, +Goal
             with_output_to_predicate/2,      % +Pred1, +Goal
             with_error_to_predicate/2,       % +Pred1, +Goal
+            with_error_to_buffer_predicate/3, % +BufferType, +Pred1, +Goal
 
             with_predicate_input_stream/3,   % +Pred1, -Stream, +Goal
             with_predicate_output_stream/3,  % +Pred1, -Stream, +Goal
@@ -42,6 +43,7 @@
         with_input_from_predicate(:, 0),
         with_output_to_predicate(:, 0),
         with_error_to_predicate(:, 0),
+        with_error_to_buffer_predicate(+, :, 0),
 
         new_predicate_output_stream(:,-),
         new_predicate_input_stream(:,-),
@@ -100,34 +102,51 @@ current_input_is_user_input:- stream_property(Stream,alias(user_input)),stream_p
 %current_output_is_user_output:- !,false.
 current_output_is_user_output:- stream_property(Stream,alias(user_output)),stream_property(Stream,alias(current_output)).
 
+% When $user_error == $current_error
+%current_error_is_user_error:- !,false.
+current_error_is_user_error:- \+ stream_property(_Stream,alias(current_error)).
+current_error_is_user_error:- stream_property(Stream,alias(user_error)),stream_property(Stream,alias(current_error)).
+
 % set current input stream and aliases
-set_current_input(In):- stream_property(In,  alias(current_input)),!.
-set_current_input(In):-
+set_current_input(In):- stream_property(Was,  alias(current_input)),!,notrace(set_current_input_to(Was,In)).
+:- '$hide'(set_current_input/1).  
+set_current_input_to(In,In):- !.
+set_current_input_to(_Was,In):-
  (current_input_is_user_input -> set_stream(In,  alias(user_input)) ; true),
  set_stream(In,  alias(current_input)),
  set_input(In).
- :- '$hide'(set_current_input/1).  
+:- '$hide'(set_current_input_to/2).
+
 
 % set current output stream and aliases
 set_current_output(Out):- stream_property(Was,  alias(current_output)),!,notrace(set_current_output_to(Was,Out)).
 :- '$hide'(set_current_output/1).  
 set_current_output_to(Out,Out):- !.
 set_current_output_to(Was,Out):-
- nop(whatevah(flush_output(Was))),
+  whatevah(flush_output(Was)),
+ (current_output_is_user_output -> set_stream(Out,  alias(user_output)) ; true),
+ set_stream(Out,  alias(current_output)),
  set_output(Out).
-:- '$hide'(set_current_output_to/2).  
+:- '$hide'(set_current_output_to/2).
+
 
 % set current error stream and aliases
-% set_current_error(Err):- current_error_stream(ErrW)-> Err==ErrW,!.
-set_current_error(Err):-
- set_stream(Err, alias(current_error)),
- set_current_error_IO(Err).
-:- '$hide'(set_current_error/1).
+set_current_error(Err):- current_error_stream(Was),!,notrace(set_current_error_to(Was,Err)).
+:- '$hide'(set_current_error/1).  
+set_current_error_to(Err,Err):- !.
+set_current_error_to(ErrWas,Err):-
+ nop(whatevah(flush_output(ErrWas))), 
+% (current_error_is_user_error -> set_stream(Err,  alias(user_error)) ; true),
+% set_stream(Err,  alias(current_error)),
+ set_error(Err),
+ !.
+:- '$hide'(set_current_error_to/2).
+
   
-set_current_error_IO(Err):-
+set_error(Err):-
  notrace((current_input(In), current_output(Out), 
  set_prolog_IO(In,Out,Err))).
-:- '$hide'(set_current_error_IO/1).  
+:- '$hide'(set_error/1).  
 
 % Get current error stream
 current_error_stream(Err):-
@@ -153,17 +172,21 @@ maybe_restore_input(_).
 :- volatile(original_user_stream/2).
 :- dynamic(original_user_stream/2).
 
+save_orig_stream(Name):- 
+  stream_property(In,alias(Name)),
+  call(asserta,original_user_stream(Name,In)),
+  thread_self(Self),atom_concat(Self,'_',SN),
+  atom_concat(SN,Name,Main),set_stream(In,alias(Main)),
+  set_stream(In,alias(Name)),!.
+
 know_original_user_input:- 
  ignore((\+ original_user_stream(_,_),
-   stream_property(In,alias(user_input)),call(asserta,original_user_stream(user_input,In)),
-   stream_property(Out,alias(user_output)),call(asserta,original_user_stream(user_output,Out)),
-   stream_property(Err,alias(user_error)),call(asserta,original_user_stream(user_error,Err)))).
+   save_orig_stream(user_input),
+   save_orig_stream(user_output),
+   save_orig_stream(user_error))).
 
 :- if(( \+ source_file_property(reloading, true))).
 :- if((thread_self(M) , M == main )).
-:- stream_property(S,alias(user_input)),set_stream(S,alias(main_user_input)).
-:- stream_property(S,alias(user_output)),set_stream(S,alias(main_user_output)).
-:- stream_property(S,alias(user_error)),set_stream(S,alias(main_user_error)).
 :- know_original_user_input.
 :- else.
 :- if(current_prolog_flag(debug,true)).
@@ -228,12 +251,17 @@ with_output_to_predicate(Pred1,Goal):-
 %  ===
 
 with_error_to_predicate(Pred1,Goal):-
-   current_error_stream(Prev),
-    with_predicate_output_stream(Pred1,Stream,
+  with_error_to_buffer_predicate(line,Pred1,Goal).
+
+with_error_to_buffer_predicate(Buffer,Pred1,Goal):-
+ current_error_stream(Prev),
+ with_predicate_output_stream(Pred1,Stream,
+(  set_stream(Stream, buffer(Buffer)),
+   set_stream(Stream, buffer_size(40960)),      
       redo_cleanup_each(
           set_current_error(Stream),
           Goal,
-         set_current_error(Prev))).
+         set_current_error(Prev)))).
 
 
 %! with_input_from_predicate( :Pred1, :Goal) is nondet.
@@ -291,8 +319,38 @@ with_predicate_input_stream(Pred1,Stream,Goal):-
 
 :- use_module(library(prolog_stream)).
 
-stream_write(Stream,Data):- notrace((tracing-> write(main_user_error,Data);
-  forall(tl:on_stream_write(Stream,Pred1),loop_check_term(call(Pred1,Data),stream_write(Stream,Data),true)))).
+:- if(exists_source(library(loop_check))).
+
+stream_write(Stream,Data):- 
+  loop_check(stream_write_0(Stream,Data),true).
+
+stream_write_0(Stream,Data):-
+ notrace((tracing-> write(main_user_error,Data);
+ (  nop(whatevah(flush_output(Stream))),
+    forall(tl:on_stream_write(Stream,Pred1),
+    once(loop_check_term(
+            call(Pred1,Data),            
+            ttt,
+           ( (
+              (write(main_user_error,skip(Data))),
+             (set_stream(Stream,buffer(full))))))))))),
+  nop(whatevah(flush_output(Stream))).
+
+:- else.
+
+stream_write(Stream,Data):-
+  forall(tl:on_stream_write(Stream,Pred1),stream_write(Stream,Pred1,Data)).
+
+:- thread_local(tl:loop_check_stream_write/1).
+stream_write(Stream,Pred1,Data):- tl:loop_check_stream_write(stream_write(Stream,Pred1,Data)),!.
+stream_write(Stream,Pred1,Data):- 
+  setup_call_cleanup(
+   call(asserta,tl:loop_check_stream_write(stream_write(Stream,Pred1,Data)),Ref),
+    once((call(Pred1,Data))),
+    erase(Ref)).
+
+:- endif.
+
 :- '$hide'(stream_write/2).
 stream_read(Stream,Data):- once(on_stream_read(Stream,Pred1) -> call(Pred1,Data) ; Data = -1).
 :- '$hide'(stream_read/2).
@@ -329,8 +387,6 @@ stream_close_output(_).
 
 new_predicate_output_stream(Pred1,Stream):-
   open_prolog_stream(predicate_streams, write, Stream, []),
-   %set_stream(Stream, buffer(line)),
-   %set_stream(Stream, buffer_size(4096)),
    asserta(tl:on_stream_write(Stream,Pred1)),
    assert(current_predicate_stream(Stream)),
    thread_at_exit(force_close(Stream)).
@@ -354,7 +410,7 @@ new_predicate_input_stream(Pred1,Stream):-
 %
 % As pronounced by a teenage girl
 %
-whatevah(Goal):- notrace('$sig_atomic'(ignore(catch(Goal,error(_,_),fail)))).
+whatevah(Goal):- notrace('$sig_atomic'(ignore(catch(Goal,error(A,B),(writeln(main_user_error,error(A,B)),break))))).
 :- '$hide'(whatevah/1).  
   
 
@@ -362,6 +418,3 @@ whatevah(Goal):- notrace('$sig_atomic'(ignore(catch(Goal,error(_,_),fail)))).
 % set_stream(Stream, buffer_size(1)),   % useful?
 % set_stream(Stream, close_on_exec(true)), % useful?
 % set_stream(Stream, close_on_abort(true)), % useful?
-
-
-
