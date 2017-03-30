@@ -27,13 +27,31 @@ saved_output("how are you?\n").
 World = hello.
 ```
 
+@ BUG
 ```prolog
-% Auto presses Y<Enter>
-?- with_input_from_predicate({}/[X]>>X='Y\n', poor_interactive_goal).
-
+% this works 
 ?- call(({}/[X]>>(repeat,X='Y')),Y).
+Y = 'Y' ;
+Y = 'Y' ;
+Y = 'Y' ;
+Y = 'Y' ;
+Y = 'Y' ;
+Y = 'Y' .
 
-?- with_input_from_predicate(({}/[X]>>(repeat,X='YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY')),(get_char(C),get_char(C2))).
+% but not this ?
+?- with_input_from_predicate(({}/[X]>>(repeat,X='YN')),(get_char(C0),get_char(C1),get_char(C2),get_char(C3))).
+C0 = 'Y',
+C1 = 'N',
+C2 = C3, C3 = end_of_file.
+
+expected 
+C0 = C2, C1 = C3,
+C2 = 'Y',
+C3 = 'N'.
+
+% Auto presses Y Multiple times
+?- with_input_from_predicate({}/[X]>>X='YYYYYYYYYYYYYYYYYYYYYYYY', poor_interactive_goal).
+
 
 ```
 
