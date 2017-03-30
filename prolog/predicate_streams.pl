@@ -342,7 +342,7 @@ stream_write(Stream,Data):-
   forall(tl:on_stream_write(Stream,Pred1),stream_write_3(Stream,Pred1,Data)).
 
 :- thread_local(tl:loop_check_stream_write/3).
-stream_write_3(Stream,Pred1,Data):- tl:loop_check_stream_write(Stream,Pred1,_Data)),!.
+stream_write_3(Stream,Pred1,Data):- tl:loop_check_stream_write(Stream,Pred1,_Data),!.
 stream_write_3(Stream,Pred1,Data):- 
   setup_call_cleanup(
    call(asserta,tl:loop_check_stream_write(Stream,Pred1,Data),Ref),
