@@ -339,20 +339,22 @@ stream_write_0(Stream,Data):-
 :- else.
 
 stream_write(Stream,Data):-
-  forall(tl:on_stream_write(Stream,Pred1),stream_write(Stream,Pred1,Data)).
+  forall(tl:on_stream_write(Stream,Pred1),stream_write_3(Stream,Pred1,Data)).
 
-:- thread_local(tl:loop_check_stream_write/1).
-stream_write(Stream,Pred1,Data):- tl:loop_check_stream_write(stream_write(Stream,Pred1,Data)),!.
-stream_write(Stream,Pred1,Data):- 
+:- thread_local(tl:loop_check_stream_write/3).
+stream_write_3(Stream,Pred1,Data):- tl:loop_check_stream_write(Stream,Pred1,_Data)),!.
+stream_write_3(Stream,Pred1,Data):- 
   setup_call_cleanup(
-   call(asserta,tl:loop_check_stream_write(stream_write(Stream,Pred1,Data)),Ref),
+   call(asserta,tl:loop_check_stream_write(Stream,Pred1,Data),Ref),
     once((call(Pred1,Data))),
     erase(Ref)).
 
 :- endif.
 
 :- '$hide'(stream_write/2).
-stream_read(Stream,Data):- once(on_stream_read(Stream,Pred1) -> call(Pred1,Data) ; Data = -1).
+
+stream_read(Stream,Data):- on_stream_read(Stream,Pred1) *-> call(Pred1,Data) ; Data = -1.
+
 :- '$hide'(stream_read/2).
 force_close(Stream):- whatevah(close(Stream,[force(true)])).
 :- '$hide'(force_close/1).  

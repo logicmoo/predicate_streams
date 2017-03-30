@@ -31,6 +31,10 @@ World = hello.
 % Auto presses Y<Enter>
 ?- with_input_from_predicate({}/[X]>>X='Y\n', poor_interactive_goal).
 
+?- call(({}/[X]>>(repeat,X='Y')),Y).
+
+?- with_input_from_predicate(({}/[X]>>(repeat,X='YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY')),(get_char(C),get_char(C2))).
+
 ```
 
 ```prolog
