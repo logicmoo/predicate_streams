@@ -398,7 +398,7 @@ new_predicate_output_stream(Pred1,Stream):-
 %  Creates a new input stream that each read/getch()
 %  Invokes: call(+Pred1,-Data).
 %
-% @todo Discuss how to handle peek_char/2
+%  todo Discuss how to handle peek_char/2
 
 new_predicate_input_stream(Pred1,Stream):-
   open_prolog_stream(predicate_streams, read, Stream, []),
