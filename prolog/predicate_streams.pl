@@ -21,7 +21,8 @@
             new_predicate_output_stream/2,   % +Pred1, -Stream
             new_predicate_input_stream/2,    % +Pred1, -Stream
 
-            current_error_stream/1                  % -Stream
+            current_error_stream/1,                  % -Stream
+            current_error/1
           ]).
 
 /** <module> predicate_streams - Abstract Predicate Streams
