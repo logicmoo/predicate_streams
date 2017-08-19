@@ -21,8 +21,8 @@
             new_predicate_output_stream/2,   % +Pred1, -Stream
             new_predicate_input_stream/2,    % +Pred1, -Stream
 
-            current_error_stream/1,                  % -Stream
-            current_error/1
+            current_error_stream/1                  % -Stream
+            
           ]).
 
 /** <module> predicate_streams - Abstract Predicate Streams
@@ -57,7 +57,6 @@
 :- meta_predicate(no_op(*)).
 no_op(_).
 
-current_error(Err):- current_error_stream(Err).
 
 %! current_predicate_stream(?Stream) is nondet.
 %
