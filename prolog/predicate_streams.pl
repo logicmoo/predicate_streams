@@ -108,7 +108,7 @@ current_error_is_user_error:- \+ stream_property(_Stream,alias(current_error)).
 current_error_is_user_error:- stream_property(Stream,alias(user_error)),stream_property(Stream,alias(current_error)).
 
 % set current input stream and aliases
-set_current_input(In):- stream_property(Was,  alias(current_input)),!,notrace(set_current_input_to(Was,In)).
+set_current_input(In):- stream_property(Was,  alias(current_input)),!,quietly(set_current_input_to(Was,In)).
 :- '$hide'(set_current_input/1).  
 set_current_input_to(In,In):- !.
 set_current_input_to(_Was,In):-
@@ -119,7 +119,7 @@ set_current_input_to(_Was,In):-
 
 
 % set current output stream and aliases
-set_current_output(Out):- stream_property(Was,  alias(current_output)),!,notrace(set_current_output_to(Was,Out)).
+set_current_output(Out):- stream_property(Was,  alias(current_output)),!,quietly(set_current_output_to(Was,Out)).
 :- '$hide'(set_current_output/1).  
 set_current_output_to(Out,Out):- !.
 set_current_output_to(Was,Out):-
@@ -131,7 +131,7 @@ set_current_output_to(Was,Out):-
 
 
 % set current error stream and aliases
-set_current_error(Err):- current_error_stream(Was),!,notrace(set_current_error_to(Was,Err)).
+set_current_error(Err):- current_error_stream(Was),!,quietly(set_current_error_to(Was,Err)).
 :- '$hide'(set_current_error/1).  
 set_current_error_to(Err,Err):- !.
 set_current_error_to(ErrWas,Err):-
@@ -144,7 +144,7 @@ set_current_error_to(ErrWas,Err):-
 
   
 set_error(Err):-
- notrace((current_input(In), current_output(Out), 
+ quietly((current_input(In), current_output(Out), 
  set_prolog_IO(In,Out,Err))).
 :- '$hide'(set_error/1).  
 
@@ -325,7 +325,7 @@ stream_write(Stream,Data):-
   loop_check(stream_write_0(Stream,Data),true).
 
 stream_write_0(Stream,Data):-
- notrace((tracing-> write(main_user_error,Data);
+ quietly((tracing-> write(main_user_error,Data);
  (  nop(whatevah(flush_output(Stream))),
     forall(tl:on_stream_write(Stream,Pred1),
     once(loop_check_term(
@@ -360,7 +360,7 @@ force_close(Stream):- whatevah(close(Stream,[force(true)])).
 :- '$hide'(force_close/1).  
 
 stream_close(Stream):-
-  notrace((
+  quietly((
    retract(current_predicate_stream(Stream)),   
    maybe_restore_input(Stream), % this is a so we dont hit the tracer in Ctrl-C
    (stream_property(Stream,output)-> stream_close_output(Stream) ; true),
@@ -373,7 +373,7 @@ stream_close(_Stream).
 
 
 stream_close_output(Stream):-
-  notrace(( 
+  quietly(( 
    %whatevah(stream_write(Stream,'')),
    whatevah(flush_output(Stream)),
    % whatevah(forall(retract(tl:on_stream_write(Stream,Pred1)), nop(debug(predicate_streams,'~N% ~q.~n',[(stream_close(Stream):-tl:on_stream_write(Pred1))])))),
@@ -412,7 +412,7 @@ new_predicate_input_stream(Pred1,Stream):-
 %
 % As pronounced by a teenage girl
 %
-whatevah(Goal):- notrace('$sig_atomic'(ignore(catch(Goal,error(A,B),(writeln(main_user_error,error(A,B)),break))))).
+whatevah(Goal):- quietly('$sig_atomic'(ignore(catch(Goal,error(A,B),(writeln(main_user_error,error(A,B)),break))))).
 :- '$hide'(whatevah/1).  
   
 
