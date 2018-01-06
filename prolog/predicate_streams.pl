@@ -321,7 +321,7 @@ with_predicate_input_stream(Pred1,Stream,Goal):-
 
 :- if(exists_source(library(loop_check))).
 
-stream_write(Stream,Data):- 
+pshook:stream_write(Stream,Data):- 
   loop_check(stream_write_0(Stream,Data),true).
 
 stream_write_0(Stream,Data):-
@@ -338,7 +338,7 @@ stream_write_0(Stream,Data):-
 
 :- else.
 
-stream_write(Stream,Data):-
+pshook:stream_write(Stream,Data):-
   forall(tl:on_stream_write(Stream,Pred1),stream_write_3(Stream,Pred1,Data)).
 
 :- thread_local(tl:loop_check_stream_write/3).
@@ -353,13 +353,13 @@ stream_write_3(Stream,Pred1,Data):-
 
 :- '$hide'(stream_write/2).
 
-stream_read(Stream,Data):- on_stream_read(Stream,Pred1) *-> call(Pred1,Data) ; Data = -1.
+pshook:stream_read(Stream,Data):- on_stream_read(Stream,Pred1) *-> call(Pred1,Data) ; Data = -1.
 
 :- '$hide'(stream_read/2).
 force_close(Stream):- whatevah(close(Stream,[force(true)])).
 :- '$hide'(force_close/1).  
 
-stream_close(Stream):-
+pshook:stream_close(Stream):-
   quietly((
    retract(current_predicate_stream(Stream)),   
    maybe_restore_input(Stream), % this is a so we dont hit the tracer in Ctrl-C
@@ -367,7 +367,7 @@ stream_close(Stream):-
    whatevah(forall(retract(on_stream_read(Stream,Pred1)),
         nop(debug(predicate_streams,'~N% ~q.~n',[(stream_close(Stream):-on_stream_read(Pred1))])))),
    forall(retract(on_stream_close(Stream,Call)),whatevah(Call)))),!.
-stream_close(_Stream).
+pshook:stream_close(_Stream).
 :- '$hide'(stream_close/1).  
 
 
@@ -388,7 +388,7 @@ stream_close_output(_).
 %  Invokes: call(+Pred1,+Data).
 
 new_predicate_output_stream(Pred1,Stream):-
-  open_prolog_stream(predicate_streams, write, Stream, []),
+  open_prolog_stream(pshook, write, Stream, []),
    asserta(tl:on_stream_write(Stream,Pred1)),
    assert(current_predicate_stream(Stream)),
    thread_at_exit(force_close(Stream)).
@@ -401,7 +401,7 @@ new_predicate_output_stream(Pred1,Stream):-
 %  todo Discuss how to handle peek_char/2
 
 new_predicate_input_stream(Pred1,Stream):-
-  open_prolog_stream(predicate_streams, read, Stream, []),
+  open_prolog_stream(pshook, read, Stream, []),
    assert(current_predicate_stream(Stream)),
    asserta(on_stream_read(Stream,Pred1)),
    set_stream(Stream, buffer_size(1)),
