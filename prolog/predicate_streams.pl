@@ -108,6 +108,7 @@ current_error_is_user_error:- \+ stream_property(_Stream,alias(current_error)).
 current_error_is_user_error:- stream_property(Stream,alias(user_error)),stream_property(Stream,alias(current_error)).
 
 % set current input stream and aliases
+set_current_input(user_input):-!.  
 set_current_input(In):- stream_property(Was,  alias(current_input)),!,quietly(set_current_input_to(Was,In)).
 :- '$hide'(set_current_input/1).  
 set_current_input_to(In,In):- !.
@@ -119,6 +120,7 @@ set_current_input_to(_Was,In):-
 
 
 % set current output stream and aliases
+set_current_output(user_output):-!.  
 set_current_output(Out):- stream_property(Was,  alias(current_output)),!,quietly(set_current_output_to(Was,Out)).
 :- '$hide'(set_current_output/1).  
 set_current_output_to(Out,Out):- !.
@@ -142,7 +144,8 @@ set_current_error_to(ErrWas,Err):-
  !.
 :- '$hide'(set_current_error_to/2).
 
-  
+
+set_error(user_error):-!.  
 set_error(Err):-
  quietly((current_input(In), current_output(Out), 
  set_prolog_IO(In,Out,Err))).
