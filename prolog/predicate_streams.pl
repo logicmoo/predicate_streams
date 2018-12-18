@@ -49,6 +49,8 @@
         new_predicate_output_stream(:,-),
         new_predicate_input_stream(:,-),
 
+        stream_write_3(*,1,?),
+
         whatevah(:),
         with_predicate_output_stream(:, -, 0),
         with_predicate_input_stream(:, -, 0).
