@@ -324,7 +324,7 @@ with_predicate_input_stream(Pred1,Stream,Goal):-
 
 :- use_module(library(prolog_stream)).
 
-:- if(exists_source(library(loop_check))).
+:- if((fail , exists_source(library(loop_check)))).
 
 pshook:stream_write(Stream,Data):- 
   loop_check(stream_write_0(Stream,Data),true).
@@ -335,7 +335,7 @@ stream_write_0(Stream,Data):-
     forall(tl:on_stream_write(Stream,Pred1),
     once(loop_check_term(
             call(Pred1,Data),            
-            ttt,
+            ttt_no_loop_mutex,
            ( (
               (write(main_user_error,skip(Data))),
              (set_stream(Stream,buffer(full))))))))))),
@@ -347,6 +347,7 @@ pshook:stream_write(Stream,Data):-
   forall(tl:on_stream_write(Stream,Pred1),stream_write_3(Stream,Pred1,Data)).
 
 :- thread_local(tl:loop_check_stream_write/3).
+
 stream_write_3(Stream,Pred1,_Data):- tl:loop_check_stream_write(Stream,Pred1,_DataOther),!.
 stream_write_3(Stream,Pred1,Data):- 
   setup_call_cleanup(
