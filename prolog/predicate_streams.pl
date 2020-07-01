@@ -59,6 +59,8 @@
 :- meta_predicate(no_op(*)).
 no_op(_).
 
+:- use_module(library(prolog_stream)).
+
 
 %! current_predicate_stream(?Stream) is nondet.
 %
