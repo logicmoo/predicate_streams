@@ -149,7 +149,8 @@ set_current_error_to(ErrWas,Err):-
 :- '$hide'(set_current_error_to/2).
 
 
-set_error(user_error):-!.  
+set_error(user_error):-!.
+set_error(current_error):-!.
 set_error(Err):-
  quietly((current_input(In), current_output(Out), 
  set_prolog_IO(In,Out,Err))).
